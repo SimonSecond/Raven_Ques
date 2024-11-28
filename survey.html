@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量表调查</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .description {
+            font-size: 18px;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .question {
+            margin-bottom: 100px;
+        }
+
+        .question h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .question img {
+            width: 100%;
+            max-width: 400px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .button {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .button:hover {
+            background-color: #ddd;
+            transform: scale(1.1);
+        }
+
+        .selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        #submit-button {
+            display: block;
+            width: 200px;
+            height: 60px;
+            font-size: 20px;
+            margin: 30px auto;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        #submit-button:hover {
+            background-color: #45a049;
+        }
+
+        #error-message {
+            color: red;
+            font-size: 18px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #timer {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            color: red;
+        }
+    </style>
+</head>
+
+<body style="touch-action: none; margin: 0px">
+    <h1>量表调查</h1>
+    <div class="description">
+        请从下图中选择一个合适的图案填补在上图的空白处，使上图变得完整，限时<span style="color: red; font-weight: bold;">12</span>分钟。
+    </div>
+
+    <!-- 限时倒计时 -->
+    <div id="timer">剩余时间：12:00</div>
+
+    <form id="survey-form">
+        <div id="question-list"></div>
+        <button type="button" id="submit-button">提交</button>
+    </form>
+
+    <div id="error-message"></div>
+
+    <script src="Bmob.js"></script>
+
+    <script>
+        window.onload = function () {
+            // 倒计时功能
+            let remainingTime = 12 * 60; // 12分钟倒计时，以秒为单位
+            const timerElement = document.getElementById('timer');
+            const startTime = new Date(); // 记录开始时间
+
+            function updateTimer() {
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = remainingTime % 60;
+                timerElement.textContent = `剩余时间：${minutes}:${seconds.toString().padStart(2, '0')}`;
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    saveAndRedirect(); // 时间到，自动提交
+                } else {
+                    remainingTime--;
+                }
+            }
+
+            const timerInterval = setInterval(updateTimer, 1000); // 每秒更新一次
+
+            // 问题数据
+            const questionsData = [
+                { id: 1, imgUrl: "images/image1.png" },
+                { id: 2, imgUrl: "images/image2.png" },
+                { id: 3, imgUrl: "images/image3.png" },
+                { id: 4, imgUrl: "images/image4.png" },
+                { id: 5, imgUrl: "images/image5.png" },
+                { id: 6, imgUrl: "images/image6.png" },
+                { id: 7, imgUrl: "images/image7.png" },
+                { id: 8, imgUrl: "images/image8.png" },
+                { id: 9, imgUrl: "images/image9.png" },
+                { id: 10, imgUrl: "images/image10.png" },
+                { id: 11, imgUrl: "images/image11.png" },
+                { id: 12, imgUrl: "images/image12.png" }
+            ];
+
+            const questionList = document.getElementById('question-list');
+
+            // 遍历问题数据，生成每个问题的 HTML
+            questionsData.forEach((question, index) => {
+                const questionContainer = document.createElement('div');
+                questionContainer.classList.add('question');
+                questionContainer.setAttribute('data-question-id', question.id);
+
+                const questionNumber = document.createElement('h2');
+                questionNumber.textContent = `第 ${index + 1} 题`;
+                questionContainer.appendChild(questionNumber);
+
+                const img = document.createElement('img');
+                img.src = question.imgUrl;
+                img.alt = `问题 ${index + 1} 的图片`;
+                questionContainer.appendChild(img);
+
+                const buttonsContainer = document.createElement('div');
+                buttonsContainer.classList.add('buttons');
+
+                for (let i = 1; i <= 8; i++) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.classList.add('button');
+                    button.setAttribute('data-value', i);
+                    button.textContent = i;
+                    buttonsContainer.appendChild(button);
+
+                    button.addEventListener('click', function () {
+                        buttonsContainer.querySelectorAll('.button').forEach(btn => btn.classList.remove('selected'));
+                        button.classList.add('selected');
+                    });
+                }
+
+                questionContainer.appendChild(buttonsContainer);
+                questionList.appendChild(questionContainer);
+            });
+
+            function checkUnansweredQuestions() {
+                const unansweredQuestions = [];
+                const questionContainers = document.querySelectorAll('.question');
+
+                questionContainers.forEach(container => {
+                    const selectedButton = container.querySelector('.selected');
+                    const questionId = container.getAttribute('data-question-id');
+                    if (!selectedButton) {
+                        unansweredQuestions.push(questionId);
+                    }
+                });
+
+                return unansweredQuestions;
+            }
+
+            // 保存数据并跳转
+            function saveAndRedirect() {
+                // 初始化Bmob包
+                Bmob.initialize("28ce3264d03ab5aa", "1234567891123456");
+                const answers = [];
+                const questionContainers = document.querySelectorAll('.question');
+
+                const endTime = new Date(); // 记录结束时间
+                const duration = Math.round((endTime - startTime) / 1000); // 答题时长，单位秒
+
+                // 收集基本信息
+                const userName = localStorage.getItem('name');
+                const userId = localStorage.getItem('id');
+                const userAge = localStorage.getItem('age');
+                const userGender = localStorage.getItem('gender');
+                const userEducation = localStorage.getItem('education');
+
+                questionContainers.forEach(container => {
+                    const selectedButton = container.querySelector('.selected');
+                    const questionId = container.getAttribute('data-question-id');
+                    answers.push({
+                        questionId,
+                        answer: selectedButton ? selectedButton.getAttribute('data-value') : null // 允许空答案
+                    });
+                });
+
+                // 保存到 Bmob
+                var TrialData = Bmob.Query("Raven_Simplified");
+                TrialData.set("userName", userName);
+                TrialData.set("userId", userId);
+                TrialData.set("userAge", userAge);
+                TrialData.set("userGender", userGender);
+                TrialData.set("userEducation", userEducation);
+                TrialData.set("answers", answers);
+                TrialData.save();
+
+                const surveyData = {
+                    userName,
+                    userId,
+                    userAge,
+                    userGender,
+                    userEducation,
+                    duration, // 答题时长
+                    answers
+                };
+
+                const fileName = `survey_${userId}_${userName}.txt`;
+                const blob = new Blob([JSON.stringify(surveyData, null, 2)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+
+                // 向父页面发送消息，要求隐藏问卷并显示结束页面
+                if (window.parent) {
+                    window.parent.postMessage('surveySubmitted', '*');
+                    console.log("已发送");
+                }
+            }
+
+            // 点击提交按钮
+            document.getElementById('submit-button').onclick = function () {
+                const unansweredQuestions = checkUnansweredQuestions();
+
+                if (unansweredQuestions.length > 0) {
+                    // 如果有未完成的问题，显示提示信息
+                    const errorMessage = `以下问题未选择: ${unansweredQuestions.join(', ')}`;
+                    document.getElementById('error-message').textContent = errorMessage;
+                    document.getElementById('error-message').style.display = 'block';
+                } else {
+                    // 如果全部完成，提交数据
+                    clearInterval(timerInterval); // 停止计时器
+                    saveAndRedirect();
+                }
+            };
+        };
+    </script>
+
+</body>
+
+</html>
